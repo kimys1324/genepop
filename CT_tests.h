@@ -50,6 +50,7 @@ class Cctable {
 public:
    Cctable(); //empty
    Cctable(std::vector<std::vector<int> > table);
+   Cctable(MTRand random);
    virtual ~Cctable() {};
    int print(std::ostream& ost);
    bool purgeZeros(bool genobool);
@@ -58,6 +59,7 @@ public:
    std::vector<double>Proba_test();
    std::vector<double>G_test();
    std::vector<double>GG_test();
+   void reset(std::vector<std::vector<int> > table);
    void switchSP();
    void switchSP_GG();
 //en genic-genotypique la magouille rapide sur 4 termes de Gobs est incorrecte qunad on la transpose à 8 termes:
@@ -74,6 +76,7 @@ private:
    std::vector<std::vector<int> > ctable;//la table elle même
    unsigned int nb_lig,nb_col; //dimensions de la table
    int total;
+   MTRand mtRand;
    int maxcount;
    std::vector<int>ligmarg,colmarg;
    std::vector<std::vector<double> > expected; //so called expected values (denominators)

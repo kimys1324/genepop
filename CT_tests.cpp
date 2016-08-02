@@ -42,7 +42,7 @@ knowledge of the CeCILL license and that you accept its terms.
 #include <ctime>
 #include <algorithm>
 #include "MersenneTwister.h"
-
+#include <omp.h>
 
 
 //pointer to member function: cf Primer+ p. 1071
@@ -64,13 +64,21 @@ namespace NS_pairs_for_GeneDivTest {
 }
 
 Cctable::Cctable(vector<vector<int> > table) {
-	nb_lig=table.size();
-	ctable.resize(nb_lig);
-	nb_col=table[0].size();
+    reset(table);
+}
+
+Cctable::Cctable(MTRand random) {
+	mtRand = random;	
+}
+
+void Cctable::reset(vector<vector<int> > table) {
+        nb_lig=table.size();
+        ctable.resize(nb_lig);
+        nb_col=table[0].size();
     for (unsigned int ii=0;ii<nb_lig;ii++) {
         ctable[ii].resize(nb_col);
         copy(table[ii].begin(),table[ii].end(),ctable[ii].begin());
-    }
+    }	
 }
 
 int Cctable::maxCellCount() {
@@ -185,15 +193,17 @@ bool info=false;
 }
 
 void Cctable::choix() {
-   lig1 = int(alea.randExc(nb_lig));
+   int check = 0;
+   lig1 = int(mtRand.randExc(nb_lig));
    do {
-       lig2 = int(alea.randExc(nb_lig));
+       lig2 = int(mtRand.randExc(nb_lig));
+	   
    } while (lig1==lig2);
-
-   col1 = int(alea.randExc(nb_col));
+   col1 = int(mtRand.randExc(nb_col));
    do {
-        col2 = int(alea.randExc(nb_col));
-   } while (col1==col2);
+        col2 = int(mtRand.randExc(nb_col));
+		
+ } while (col1==col2);
 }
 
 void Cctable::switchSP(){
@@ -249,7 +259,7 @@ long int switches;
       if (prob1 != 0) {
         prob2 = (ctable[lig2][col1] + 1) * (ctable[lig1][col2] + 1);
         prob = double(prob1) / prob2;
-        if (!((prob < 1) && (alea()>prob))) { // not (cas ou on ne bouge pas)
+        if (!((prob < 1) && (mtRand()>prob))) { // not (cas ou on ne bouge pas)
            (this->*switchFnPtr)();
            rho += log(prob);
            if (fabs(rho) < DRIFT_PREC) rho = 0;
@@ -265,7 +275,7 @@ long int switches;
            if (prob1 != 0) {
             prob2 = (ctable[lig2][col1] + 1) * (ctable[lig1][col2] + 1);
             prob = double(prob1) / prob2;
-            if (!((prob < 1) && (alea()>prob))) { // NOT (cas ou on ne bouge pas)
+            if (!((prob < 1) && (mtRand()>prob))) { // NOT (cas ou on ne bouge pas)
                (this->*switchFnPtr)();
                rho += log(prob);
                switches++;
@@ -287,7 +297,6 @@ long int switches;
        }
     }
     if (affichIntermBool) {_gotoxy(0,18); cout<<"Already "<<batchnbr<<" batches done out of "<<batchnbr<<"  "<<endl;}
-
     hECA = sqrt((hECA - (hM * hM) / batchnbr) / batchnbr / (batchnbr - 1.0));
     hM = hM / batchnbr;
     vector<double>zut(0);
@@ -560,6 +569,8 @@ float _secs;
 bool affichIntermBool=false;
 int switches;
 double stat,obsgeneDiv=0; // used in case test is not G-test
+int check = 0;
+
   time(&_StartTime);
   if(alleleNbrTestBool) {
      cerr<<"(!) Allele number test on contingency table file not yet implemented. Exiting...";
@@ -574,12 +585,14 @@ double stat,obsgeneDiv=0; // used in case test is not G-test
       if (prob1 != 0) {
         prob2 = (ctable[lig2][col1] + 1) * (ctable[lig1][col2] + 1);
         prob = double(prob1) / prob2;
-        if (!((prob < 1) && (alea()>prob))) { // not (cas ou on ne bouge pas)
+        if (!((prob < 1) && (mtRand()>prob))) { // not (cas ou on ne bouge pas)
            if ((obs=ctable[lig1][col1])>0) G-=log(double(obs)/expected[lig1][col1])*obs; //G
            if ((obs=ctable[lig1][col2])>0) G-=log(double(obs)/expected[lig1][col2])*obs; //G
            if ((obs=ctable[lig2][col1])>0) G-=log(double(obs)/expected[lig2][col1])*obs; //G
            if ((obs=ctable[lig2][col2])>0) G-=log(double(obs)/expected[lig2][col2])*obs; //G
+		   
            (this->*switchFnPtr)();
+					
            rho += log(prob);
            if (fabs(rho) < DRIFT_PREC) rho = 0;
            if ((obs=ctable[lig1][col1])>0) G+=log(double(obs)/expected[lig1][col1])*obs; //G
@@ -588,7 +601,10 @@ double stat,obsgeneDiv=0; // used in case test is not G-test
            if ((obs=ctable[lig2][col2])>0) G+=log(double(obs)/expected[lig2][col2])*obs; //G
            if (fabs(G-Gobs) < DRIFT_PREC) G = Gobs;   //G
         }
-      }
+		
+	  }
+	 
+	  check++;
   }
   switches=0;
   //Realisation des batches
@@ -599,12 +615,16 @@ double stat,obsgeneDiv=0; // used in case test is not G-test
            if (prob1 != 0) {
             prob2 = (ctable[lig2][col1] + 1) * (ctable[lig1][col2] + 1);
             prob = double(prob1) / prob2;
-            if (!((prob < 1) && (alea()>prob))) { // not (cas ou on ne bouge pas)
+            if (!((prob < 1) && (mtRand()>prob))) { // not (cas ou on ne bouge pas)
                if ((obs=ctable[lig1][col1])>0) G-=log(double(obs)/expected[lig1][col1])*obs; //G
                if ((obs=ctable[lig1][col2])>0) G-=log(double(obs)/expected[lig1][col2])*obs; //G
                if ((obs=ctable[lig2][col1])>0) G-=log(double(obs)/expected[lig2][col1])*obs; //G
                if ((obs=ctable[lig2][col2])>0) G-=log(double(obs)/expected[lig2][col2])*obs; //G
+
+//					printf("before2222222222222222 ctable %d\n",ctable[lig1][col2]);
                (this->*switchFnPtr)();
+
+//					printf("after222222222222222 ctable %d\n",ctable[lig1][col2]);
                rho += log(prob);
                if (fabs(rho) < DRIFT_PREC) rho = 0;
                if ((obs=ctable[lig1][col1])>0) G+=log(double(obs)/expected[lig1][col1])*obs; //G
@@ -640,13 +660,13 @@ double stat,obsgeneDiv=0; // used in case test is not G-test
       _gotoxy(0,18);
       cout<<"Already "<<batchnbr<<" batches done out of "<<batchnbr<<"  "<<endl;
    }
-
   hECA = sqrt((hECA - (hM * hM) / batchnbr) / batchnbr / (batchnbr - 1.0));
   hM = hM / batchnbr;
   vector<double>zut;
   zut.push_back(hM);
   zut.push_back(hECA);
   zut.push_back(switches);
+ // int id = omp_get_thread_num();
 return zut;
 } // fin G_test
 
